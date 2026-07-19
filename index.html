@@ -1,0 +1,1175 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>เข้าสู่ระบบบัญชีดิจิทัล</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+Thai:wght@500;600;700&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --paper: #f8f6f0; --ink: #111e30; --ink-soft: #4a5d78; --line: #e2dacb;
+      --card: #ffffff; --gold: #a6701e; --gold-soft: #fbf5e9; --green: #1b663e;
+      --green-soft: #edf7f2; --red: #a8392c; --red-soft: #fdf2f0;
+      --shadow-sm: 0 2px 8px rgba(17, 30, 48, 0.04);
+      --shadow-md: 0 12px 32px rgba(17, 30, 48, 0.06);
+    }
+    body {
+      font-family: "Sarabun", sans-serif; color: var(--ink);
+      background: radial-gradient(circle at 95% 5%, rgba(166,112,30, 0.08), transparent 30rem), var(--paper);
+    }
+    h1, h2, h3 { font-family: "Noto Serif Thai", serif; }
+    .access-card { border: 1px solid var(--line); box-shadow: var(--shadow-md); }
+    .workspace-sidebar { border-right: 1px solid var(--line); }
+    .panel, .summary-card { border: 1px solid rgba(226, 218, 203, 0.6); box-shadow: var(--shadow-sm); }
+    
+    .status-pill {
+      display: inline-flex; align-items: center; justify-content: center;
+      padding: 0.25rem 0.75rem; border-radius: 999px; font-size: 0.75rem; font-weight: 700;
+    }
+    .status-pending { color: #935a00; background: var(--gold-soft); border: 1px solid rgba(166,112,30,0.15); }
+    .status-overdue { color: var(--red); background: var(--red-soft); border: 1px solid rgba(168,57,44,0.15); }
+    .status-paid { color: var(--green); background: var(--green-soft); border: 1px solid rgba(27,102,62,0.15); }
+    
+    /* Mail Notification Animation */
+    @keyframes wiggle {
+      0%, 100% { transform: rotate(0); }
+      15% { transform: rotate(8deg); }
+      30% { transform: rotate(-8deg); }
+      45% { transform: rotate(4deg); }
+      60% { transform: rotate(-4deg); }
+    }
+    .bell-animate:hover i {
+      animation: wiggle 0.6s ease-in-out;
+    }
+
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+    @media print {
+      body * { visibility: hidden; }
+      #printArea, #printArea * { visibility: visible; }
+      #printArea { position: absolute; left: 0; top: 0; width: 100%; display: block !important; }
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between">
+
+  <div id="printArea" class="hidden p-8 bg-white text-slate-900"></div>
+
+  <!-- ==================== 1. ACCESS SCREEN ==================== -->
+  <section id="accessScreen" class="flex-1 flex items-center justify-center p-4">
+    <div class="access-card w-full max-w-md p-8 rounded-2xl bg-white/95 backdrop-blur-sm transition-all duration-300">
+      <div class="flex flex-col items-center text-center mb-8">
+        <span class="inline-flex items-center justify-content-center w-14 h-14 bg-[#111e30] text-white rounded-2xl shadow-lg mb-4">
+          <i data-lucide="shield-check" class="w-7 h-7"></i>
+        </span>
+        <h1 class="text-2xl font-bold tracking-tight text-[#111e30]">เข้าสู่ระบบบัญชีดิจิทัล</h1>
+        <p class="text-xs text-slate-400 mt-1 uppercase tracking-widest font-semibold text-[#a6701e]">Digital Account Management</p>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-xl mb-6">
+        <button id="userRoleBtn" type="button" class="py-2.5 px-4 rounded-lg font-bold text-sm text-center transition-all duration-200 bg-white text-[#111e30] shadow-sm" onclick="setRole('user')">
+          ผู้ใช้งานทั่วไป
+        </button>
+        <button id="adminRoleBtn" type="button" class="py-2.5 px-4 rounded-lg font-bold text-sm text-center transition-all duration-200 text-slate-500 hover:text-[#111e30]" onclick="setRole('admin')">
+          ผู้ดูแลระบบ
+        </button>
+      </div>
+
+      <form id="loginForm" onsubmit="handleLogin(event)">
+        <div class="mb-5">
+          <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">รหัส PIN เข้าใช้งาน</label>
+          <input id="pinInput" class="w-full border border-slate-200 rounded-xl p-3 text-center text-2xl font-bold tracking-[0.5em] bg-slate-50 focus:bg-white focus:border-[#a6701e] focus:ring-2 focus:ring-[#a6701e]/10 transition-all outline-none" type="password" maxlength="7" required>
+        </div>
+        <button type="submit" class="w-full flex items-center justify-center gap-2 bg-[#111e30] text-white p-3.5 rounded-xl font-bold hover:bg-[#a6701e] shadow-md hover:shadow-lg active:scale-[0.99] transition-all duration-200">
+          <i data-lucide="log-in" class="w-4 h-4"></i> เข้าสู่ระบบอนุมัติสิทธิ์
+        </button>
+        <p id="accessMessage" class="text-xs font-semibold mt-3 text-red-500 text-center hidden"></p>
+      </form>
+
+      <div class="mt-8 pt-6 border-t border-slate-100">
+        <div class="text-md font-bold text-[#111e30] mb-1">ลงทะเบียนขอสิทธิ์ใหม่</div>
+        <p class="text-xs text-slate-400 mb-4">บัญชีผู้ใช้ใหม่จำเป็นต้องได้รับการอนุมัติจากแอดมินก่อนเข้าใช้งาน</p>
+        <div class="space-y-2.5">
+          <input id="reqEmail" type="email" placeholder="ที่อยู่อีเมลของคุณ" class="w-full border border-slate-200 rounded-xl p-3 text-sm bg-slate-50 focus:bg-white focus:border-[#a6701e] outline-none transition-all">
+          <input id="reqPin" type="password" placeholder="ตั้งรหัส PIN (4-7 หลัก)" class="w-full border border-slate-200 rounded-xl p-3 text-sm text-center font-bold tracking-[0.2em] bg-slate-50 focus:bg-white focus:border-[#a6701e] outline-none transition-all" maxlength="7">
+          <button type="button" onclick="handleRegister()" class="w-full bg-[#fbf5e9] text-[#a6701e] border border-[#e2dacb] p-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 hover:bg-[#a6701e] hover:text-white transition-all duration-200">
+            <i data-lucide="send" class="w-4 h-4"></i> ส่งคำขออนุมัติสิทธิ์
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== 2. ADMIN DASHBOARD ==================== -->
+  <main id="adminDashboard" class="w-full max-w-[1480px] mx-auto p-4 md:p-6 hidden flex-1">
+    <div class="flex justify-between items-center mb-6 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+      <div class="flex items-center gap-3">
+        <span class="w-10 h-10 bg-[#111e30] text-white flex items-center justify-center rounded-xl shadow-md"><i data-lucide="shield-check" class="w-5 h-5"></i></span>
+        <div>
+          <h1 class="font-bold text-base text-[#111e30]">แผงควบคุมผู้ดูแลระบบ</h1>
+          <p class="text-xs text-[#a6701e] font-medium tracking-wide">สิทธิ์เข้าถึง: Administrator</p>
+        </div>
+      </div>
+      
+      <button class="relative bg-white hover:bg-slate-50 p-2.5 rounded-xl transition-all border border-slate-200/80 shadow-sm flex items-center justify-center group" onclick="switchView('admin', 'messages')">
+        <i data-lucide="mail" class="w-5 h-5 text-slate-500 group-hover:text-[#a6701e] transition-colors"></i>
+        <span id="adminMailBadge" class="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[9px] w-4 h-4 flex items-center justify-center rounded-full font-bold shadow-sm">0</span>
+      </button>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-[250px_1fr] gap-6 items-start">
+      <aside class="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm space-y-1">
+        <button onclick="switchView('admin', 'overview')" class="admin-nav-btn w-full flex items-center gap-3 p-3 rounded-xl font-bold text-sm transition-all duration-200 bg-[#111e30] text-white shadow-sm"><i data-lucide="layout-dashboard" class="w-4 h-4"></i> จัดการบัญชีหนี้สิน</button>
+        <button onclick="switchView('admin', 'users')" class="admin-nav-btn w-full flex items-center gap-3 p-3 rounded-xl font-bold text-sm text-slate-500 hover:bg-slate-50 hover:text-[#111e30] transition-all duration-200"><i data-lucide="users" class="w-4 h-4"></i> อนุมัติสิทธิ์สมาชิก</button>
+        <button onclick="switchView('admin', 'messages')" class="admin-nav-btn w-full flex items-center gap-3 p-3 rounded-xl font-bold text-sm text-slate-500 hover:bg-slate-50 hover:text-[#111e30] transition-all duration-200"><i data-lucide="mail-question" class="w-4 h-4"></i> กล่องข้อความร้องเรียน</button>
+        <button onclick="switchView('admin', 'notices')" class="admin-nav-btn w-full flex items-center gap-3 p-3 rounded-xl font-bold text-sm text-slate-500 hover:bg-slate-50 hover:text-[#111e30] transition-all duration-200"><i data-lucide="megaphone" class="w-4 h-4"></i> ประกาศข่าวสาร</button>
+        <div class="pt-4 mt-4 border-t border-slate-100">
+          <button onclick="logout()" class="w-full flex items-center justify-center gap-2 p-3 bg-red-50 hover:bg-red-500 hover:text-white border border-red-100 text-red-600 rounded-xl font-bold text-sm transition-all duration-200"><i data-lucide="log-out" class="w-4 h-4"></i> ออกจากระบบ</button>
+        </div>
+      </aside>
+
+      <section class="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm min-h-[600px]">
+        
+        <!-- View: Overview & Form -->
+        <div id="admin-overview" class="admin-view-section block space-y-6">
+          <div class="p-5 bg-slate-50 border border-slate-200 rounded-xl relative overflow-hidden pt-7">
+            
+            <!-- แถบแก้ไขแนวนอนด้านบน (Admin) -->
+            <div id="editBannerAdmin" class="absolute top-0 left-0 right-0 bg-amber-500 text-white text-xs font-bold py-1 px-4 flex justify-between items-center transition-all duration-300 hidden">
+              <span class="flex items-center gap-1"><i data-lucide="edit-3" class="w-3.5 h-3.5"></i> คุณกำลังอยู่ในโหมดแก้ไขข้อมูลบัญชีสัญญา</span>
+              <button type="button" onclick="cancelEdit('admin')" class="bg-amber-700 hover:bg-amber-800 px-2 py-0.5 rounded text-[10px] transition-all">ยกเลิกแก้ไข</button>
+            </div>
+
+            <h3 class="font-bold text-base mb-4 text-[#111e30] flex items-center gap-2"><i data-lucide="file-plus" class="w-5 h-5 text-[#a6701e]"></i> เพิ่ม / แก้ไข ข้อมูลบัญชีรายชื่อหนี้สิน</h3>
+            <form id="adminDebtForm" onsubmit="saveDebtRecord(event, 'admin')" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <input type="hidden" id="editIndexAdmin" value="">
+              <div>
+                <label class="block text-xs font-bold text-slate-500 mb-1">ประเภทหนี้สิน/เงินกู้ *</label>
+                <input id="debtorNameAdmin" type="text" placeholder="ระบุประเภทหนี้สิน" class="w-full border border-slate-200 rounded-xl p-2.5 bg-white text-sm focus:border-[#a6701e] outline-none transition-all" required>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-500 mb-1">เลขที่สัญญา *</label>
+                <input id="contractNumberAdmin" type="text" placeholder="ระบุเลขที่สัญญา" class="w-full border border-slate-200 rounded-xl p-2.5 bg-white text-sm focus:border-[#a6701e] outline-none transition-all" required>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-500 mb-1">รหัสผู้กู้ยืม (PIN ผู้ใช้)</label>
+                <input id="assignedUserPinAdmin" type="text" placeholder="ผูกสิทธิ์ด้วยรหัส PIN ของผู้ใช้" class="w-full border border-slate-200 rounded-xl p-2.5 bg-white text-sm focus:border-[#a6701e] outline-none transition-all">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-500 mb-1"> ยอดจำนวนเงิน (บาท) *</label>
+                <input id="amountAdmin" type="number" min="0" step="0.01" placeholder="0.00" class="w-full border border-slate-200 rounded-xl p-2.5 bg-white text-sm focus:border-[#a6701e] outline-none transition-all" required>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-500 mb-1">วันครบกำหนดชำระ *</label>
+                <input id="dueDateAdmin" type="date" class="w-full border border-slate-200 rounded-xl p-2.5 bg-white text-sm focus:border-[#a6701e] outline-none transition-all" required>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-500 mb-1">สถานะดำเนินการ</label>
+                <select id="debtStatusAdmin" class="w-full border border-slate-200 rounded-xl p-2.5 bg-white text-sm focus:border-[#a6701e] outline-none transition-all">
+                  <option value="ค้างชำระ">ค้างชำระ</option>
+                  <option value="เกินกำหนด">เกินกำหนด</option>
+                  <option value="ชำระแล้ว">ชำระแล้ว</option>
+                </select>
+              </div>
+              <div class="md:col-span-2">
+                <label class="block text-xs font-bold text-slate-500 mb-1">หมายเหตุ / ลำดับ / รายละเอียดเพิ่มเติม</label>
+                <input id="notesAdmin" type="text" placeholder="รายละเอียดระบุเพิ่มเติมความสำคัญ..." class="w-full border border-slate-200 rounded-xl p-2.5 bg-white text-sm focus:border-[#a6701e] outline-none transition-all">
+              </div>
+              <div class="md:col-span-2">
+                <label class="block text-xs font-bold text-slate-500 mb-1">แนบไฟล์เอกสารหลักฐานประกอบสัญญา</label>
+                <div class="flex items-center gap-3 bg-white border border-slate-200 rounded-xl p-2">
+                  <input id="fileAdmin" type="file" class="text-xs text-slate-500 file:mr-4 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer flex-1">
+                  <div id="fileManageZoneAdmin" class="hidden flex items-center gap-2">
+                    <span id="fileNameDisplayAdmin" class="text-xs font-medium text-[#a6701e] max-w-[150px] truncate"></span>
+                    <button type="button" onclick="removeAttachedFile('admin')" class="text-xs bg-red-50 text-red-600 border border-red-200 py-1 px-2 rounded-lg font-bold hover:bg-red-500 hover:text-white transition-all">ลบไฟล์เดิม</button>
+                  </div>
+                </div>
+              </div>
+              <div class="md:col-span-2 flex justify-end gap-2 mt-2">
+                <button type="button" onclick="cancelEdit('admin')" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-5 py-2.5 rounded-xl font-bold text-sm hidden" id="cancelBtnAdmin">ยกเลิก</button>
+                <button type="submit" class="bg-[#111e30] hover:bg-[#a6701e] text-white px-6 py-2.5 rounded-xl font-bold text-sm flex items-center gap-1 transition-all"><i data-lucide="save" class="w-4 h-4"></i> บันทึกรายการ</button>
+              </div>
+            </form>
+          </div>
+
+          <div class="flex flex-col md:flex-row gap-3 items-center justify-between bg-slate-50 p-4 rounded-xl border border-slate-200/80">
+            <div class="relative w-full md:max-w-md">
+              <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                <i data-lucide="search" class="w-4 h-4"></i>
+              </span>
+              <input type="text" id="adminSearchInput" oninput="renderAdminTable()" placeholder="ค้นหาเลขที่สัญญา, ประเภทหนี้, รหัส PIN..." class="w-full bg-white border border-slate-200 rounded-xl pl-9 pr-4 py-2 text-sm outline-none focus:border-[#a6701e] transition-all">
+            </div>
+            <button onclick="exportData('admin')" class="w-full md:w-auto flex items-center justify-center gap-1.5 text-xs bg-[#edf7f2] text-[#1b663e] border border-green-200 py-2 px-4 rounded-xl font-bold hover:bg-[#1b663e] hover:text-white transition-all"><i data-lucide="file-spreadsheet" class="w-4 h-4"></i> ส่งออก Excel</button>
+          </div>
+
+          <div class="border border-slate-100 rounded-xl overflow-hidden shadow-sm">
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr class="bg-[#111e30] text-white font-medium uppercase tracking-wider">
+                    <th class="p-3.5 text-center">ลำดับ</th>
+                    <th class="p-3.5">เลขที่สัญญา</th>
+                    <th class="p-3.5">ประเภทหนี้สิน</th>
+                    <th class="p-3.5 text-center">รหัสผู้กู้ (PIN)</th>
+                    <th class="p-3.5 font-bold">ยอดเงินกู้</th>
+                    <th class="p-3.5">วันครบกำหนด</th>
+                    <th class="p-3.5 text-center">ไฟล์แนบ</th>
+                    <th class="p-3.5">หมายเหตุ</th>
+                    <th class="p-3.5">สถานะ</th>
+                    <th class="p-3.5 text-center">การจัดการ</th>
+                  </tr>
+                </thead>
+                <tbody id="adminOverviewTableBody" class="divide-y divide-slate-100"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- View: Users List & Approval -->
+        <div id="admin-users" class="admin-view-section hidden space-y-4">
+          <div class="p-5 bg-slate-50 border border-slate-200 rounded-xl">
+            <h3 class="font-bold text-base mb-4 text-[#111e30] flex items-center gap-2 admin-user-form-title"><i data-lucide="user-plus" class="w-5 h-5 text-[#a6701e]"></i> เพิ่ม / แก้ไขข้อมูลสมาชิก</h3>
+            <form id="adminUserForm" onsubmit="saveUserRecord(event)" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <input type="hidden" id="editUserIndex" value="">
+              <div>
+                <label class="block text-xs font-bold text-slate-500 mb-1">อีเมลผู้ใช้งาน *</label>
+                <input id="userEmailInput" type="email" placeholder="example@loan.com" class="w-full border border-slate-200 rounded-xl p-2.5 bg-white text-sm focus:border-[#a6701e] outline-none transition-all" required>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-500 mb-1">รหัส PIN (4-7 หลัก) *</label>
+                <input id="userPinInput" type="password" maxlength="7" placeholder="ระบุรหัส PIN" class="w-full border border-slate-200 rounded-xl p-2.5 bg-white text-sm focus:border-[#a6701e] outline-none transition-all text-center font-bold tracking-widest" required>
+              </div>
+              <div class="md:col-span-2 flex justify-end gap-2 mt-2">
+                <button type="button" onclick="cancelUserEdit()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-5 py-2.5 rounded-xl font-bold text-sm hidden" id="cancelUserBtn">ยกเลิก</button>
+                <button type="submit" class="bg-[#111e30] hover:bg-[#a6701e] text-white px-6 py-2.5 rounded-xl font-bold text-sm flex items-center gap-1 transition-all"><i data-lucide="save" class="w-4 h-4"></i> บันทึกบัญชีสมาชิก</button>
+              </div>
+            </form>
+          </div>
+
+          <h2 class="text-lg font-bold text-[#111e30]">อนุมัติสิทธิ์เข้าใช้งานและจัดการสมาชิก</h2>
+          <div class="border border-slate-100 rounded-xl overflow-hidden shadow-sm">
+            <table class="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr class="bg-[#111e30] text-white font-medium">
+                  <th class="p-3.5">ลำดับ</th>
+                  <th class="p-3.5">อีเมลผู้สมัคร</th>
+                  <th class="p-3.5">รหัส PIN</th>
+                  <th class="p-3.5">บทบาท</th>
+                  <th class="p-3.5">การตรวจสอบสิทธิ์</th>
+                  <th class="p-3.5 text-center">การควบคุม</th>
+                </tr>
+              </thead>
+              <tbody id="adminUsersTableBody" class="divide-y divide-slate-100"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- View: Admin Messaging Center -->
+        <div id="admin-messages" class="admin-view-section hidden space-y-4">
+          <h2 class="text-lg font-bold text-[#111e30]">กล่องจดหมายสอบถามและคำขออนุมัติเปลี่ยนข้อมูลสมาชิก</h2>
+          <div id="adminMessageList" class="grid grid-cols-1 gap-4"></div>
+        </div>
+
+        <!-- View: Admin Notices Center -->
+        <div id="admin-notices" class="admin-view-section hidden space-y-4">
+          <h2 class="text-lg font-bold text-[#111e30]">เขียนประกาศ/มาตรการช่วยเหลือแจ้งเตือน</h2>
+          <div class="bg-slate-50 border border-slate-200 p-5 rounded-xl">
+            <textarea id="noticeMessage" rows="4" placeholder="กรอกข้อมูลแจ้งข่าวสารสำคัญประชาสัมพันธ์ไปยังสมาชิกผู้ใช้งาน..." class="w-full border border-slate-200 rounded-xl p-3 bg-white text-sm mb-3 focus:border-[#a6701e] outline-none transition-all resize-none"></textarea>
+            <button onclick="publishNotice()" class="bg-[#111e30] hover:bg-[#a6701e] text-white px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-1 transition-all shadow-sm"><i data-lucide="send" class="w-4 h-4"></i> เผยแพร่ข้อความ</button>
+          </div>
+          <div id="adminNoticeList" class="space-y-2"></div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- ==================== 3. USER DASHBOARD ==================== -->
+  <main id="userDashboard" class="w-full max-w-[1480px] mx-auto p-4 md:p-6 hidden flex-1">
+    <div class="flex justify-between items-center mb-6 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+      <div class="flex items-center gap-3">
+        <span class="w-10 h-10 bg-[#a6701e] text-white flex items-center justify-center rounded-xl shadow-md"><i data-lucide="user-round-check" class="w-5 h-5"></i></span>
+        <div>
+          <h1 class="font-bold text-base text-[#111e30]">ยินดีต้อนรับ คุณ <span id="userSidebarTitle" class="text-[#a6701e]">ผู้ใช้งาน</span></h1>
+          <p class="text-xs text-slate-400 font-medium">แผงจัดการและบันทึกบัญชีสมาชิก</p>
+        </div>
+      </div>
+      
+      <!-- ปุ่มแจ้งเตือนใหม่: เปลี่ยนเป็นไอคอนกล่องจดหมาย & ลบแถบเงาดำ shadow-inner ออกแล้ว -->
+      <button class="bell-animate relative bg-amber-50 hover:bg-amber-100 p-3 rounded-full transition-all duration-300 border border-amber-200/60 shadow-sm flex items-center justify-center group" onclick="switchView('user', 'userNotices')">
+        <i data-lucide="mail-open" class="w-5 h-5 text-[#a6701e] group-hover:text-[#111e30] transition-colors"></i>
+        <span id="userMailBadge" class="absolute -top-1 -right-1 bg-gradient-to-r from-red-500 to-rose-600 text-white text-[10px] w-5 h-5 flex items-center justify-center rounded-full font-bold shadow-md tracking-tighter">0</span>
+      </button>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-[250px_1fr] gap-6 items-start">
+      <aside class="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm space-y-1">
+        <button onclick="switchView('user', 'userOverview')" class="user-nav-btn w-full flex items-center gap-3 p-3 rounded-xl font-bold text-sm transition-all duration-200 bg-[#111e30] text-white shadow-sm"><i data-lucide="layout-dashboard" class="w-4 h-4"></i> จัดการบัญชีหนี้สินของฉัน</button>
+        <button onclick="switchView('user', 'userProfile')" class="user-nav-btn w-full flex items-center gap-3 p-3 rounded-xl font-bold text-sm text-slate-500 hover:bg-slate-50 hover:text-[#111e30] transition-all duration-200"><i data-lucide="user-cog" class="w-4 h-4"></i> แก้ไขข้อมูลบัญชี (ส่งคำขอ)</button>
+        <button onclick="switchView('user', 'userContact')" class="user-nav-btn w-full flex items-center gap-3 p-3 rounded-xl font-bold text-sm text-slate-500 hover:bg-slate-50 hover:text-[#111e30] transition-all duration-200"><i data-lucide="mail" class="w-4 h-4"></i> ติดต่อสอบถามแอดมิน</button>
+        <button onclick="switchView('user', 'userNotices')" class="user-nav-btn w-full flex items-center gap-3 p-3 rounded-xl font-bold text-sm text-slate-500 hover:bg-slate-50 hover:text-[#111e30] transition-all duration-200"><i data-lucide="megaphone" class="w-4 h-4"></i> กล่องข้อความแจ้งเตือน</button>
+        <div class="pt-4 mt-4 border-t border-slate-100">
+          <button onclick="logout()" class="w-full flex items-center justify-center gap-2 p-3 bg-red-50 hover:bg-red-500 hover:text-white border border-red-100 text-red-600 rounded-xl font-bold text-sm transition-all duration-200"><i data-lucide="log-out" class="w-4 h-4"></i> ออกจากระบบ</button>
+        </div>
+      </aside>
+
+      <section class="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm min-h-[600px]">
+        
+        <!-- User View: Overview Management Form -->
+        <div id="user-userOverview" class="user-view-section block space-y-6">
+          <div class="p-5 bg-slate-50 border border-slate-200 rounded-xl relative overflow-hidden pt-7">
+            
+            <!-- แถบแก้ไขแนวนอนด้านบน (User) -->
+            <div id="editBannerUser" class="absolute top-0 left-0 right-0 bg-amber-500 text-white text-xs font-bold py-1 px-4 flex justify-between items-center transition-all duration-300 hidden">
+              <span class="flex items-center gap-1"><i data-lucide="edit-3" class="w-3.5 h-3.5"></i> คุณกำลังอยู่ในโหมดแก้ไขข้อมูลบัญชีสัญญาของคุณ</span>
+              <button type="button" onclick="cancelEdit('user')" class="bg-amber-700 hover:bg-amber-800 px-2 py-0.5 rounded text-[10px] transition-all">ยกเลิกแก้ไข</button>
+            </div>
+
+            <h3 class="font-bold text-base mb-4 text-[#111e30] flex items-center gap-2"><i data-lucide="plus-circle" class="w-5 h-5 text-[#a6701e]"></i> เพิ่ม / แก้ไขรายการบันทึกหนี้สินของคุณ</h3>
+            <form id="userDebtForm" onsubmit="saveDebtRecord(event, 'user')" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <input type="hidden" id="editIndexUser" value="">
+              <div>
+                <label class="block text-xs font-bold text-slate-500 mb-1">ประเภทเงินกู้/หนี้สิน *</label>
+                <input id="debtorNameUser" type="text" placeholder="ระบุประเภทหนี้สิน" class="w-full border border-slate-200 rounded-xl p-2.5 bg-white text-sm focus:border-[#a6701e] outline-none transition-all" required>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-500 mb-1">เลขที่สัญญา *</label>
+                <input id="contractNumberUser" type="text" placeholder="ระบุเลขที่สัญญา" class="w-full border border-slate-200 rounded-xl p-2.5 bg-white text-sm focus:border-[#a6701e] outline-none transition-all" required>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-500 mb-1">จำนวนเงินค้างชำระ (บาท) *</label>
+                <input id="amountUser" type="number" min="0" step="0.01" placeholder="0.00" class="w-full border border-slate-200 rounded-xl p-2.5 bg-white text-sm focus:border-[#a6701e] outline-none transition-all" required>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-500 mb-1">วันครบกำหนดชำระ *</label>
+                <input id="dueDateUser" type="date" class="w-full border border-slate-200 rounded-xl p-2.5 bg-white text-sm focus:border-[#a6701e] outline-none transition-all" required>
+              </div>
+              <div class="md:col-span-2">
+                <label class="block text-xs font-bold text-slate-500 mb-1">สถานะชำระหนี้</label>
+                <select id="debtStatusUser" class="w-full border border-slate-200 rounded-xl p-2.5 bg-white text-sm focus:border-[#a6701e] outline-none transition-all">
+                  <option value="ค้างชำระ">ค้างชำระ</option>
+                  <option value="เกินกำหนด">เกินกำหนด</option>
+                  <option value="ชำระแล้ว">ชำระแล้ว</option>
+                </select>
+              </div>
+              <div class="md:col-span-2">
+                <label class="block text-xs font-bold text-slate-500 mb-1">หมายเหตุ / ลำดับ / ข้อมูลบันทึกความสำคัญส่วนตัว</label>
+                <input id="notesUser" type="text" placeholder="ระบุบันทึกรายละเอียดเพิ่มเติม..." class="w-full border border-slate-200 rounded-xl p-2.5 bg-white text-sm focus:border-[#a6701e] outline-none transition-all">
+              </div>
+              <div class="md:col-span-2">
+                <label class="block text-xs font-bold text-slate-500 mb-1">แนบไฟล์เอกสารภาพถ่ายสัญญา/ใบเสร็จ</label>
+                <div class="flex items-center gap-3 bg-white border border-slate-200 rounded-xl p-2">
+                  <input id="fileUser" type="file" class="text-xs text-slate-500 file:mr-4 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer flex-1">
+                  <div id="fileManageZoneUser" class="hidden flex items-center gap-2">
+                    <span id="fileNameDisplayUser" class="text-xs font-medium text-[#a6701e] max-w-[150px] truncate"></span>
+                    <button type="button" onclick="removeAttachedFile('user')" class="text-xs bg-red-50 text-red-600 border border-red-200 py-1 px-2 rounded-lg font-bold hover:bg-red-500 hover:text-white transition-all">ลบไฟล์เดิม</button>
+                  </div>
+                </div>
+              </div>
+              <div class="md:col-span-2 flex justify-end gap-2 mt-2">
+                <button type="button" onclick="cancelEdit('user')" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-5 py-2.5 rounded-xl font-bold text-sm hidden" id="cancelBtnUser">ยกเลิก</button>
+                <button type="submit" class="bg-[#a6701e] hover:bg-[#111e30] text-white px-6 py-2.5 rounded-xl font-bold text-sm transition-all shadow-sm">บันทึกรายการบัญชี</button>
+              </div>
+            </form>
+          </div>
+
+          <!-- โซนค้นหาและส่งออก Excel ของหน้าผู้ใช้ -->
+          <div class="flex flex-col md:flex-row gap-3 items-center justify-between bg-slate-50 p-4 rounded-xl border border-slate-200/80">
+            <div class="relative w-full md:max-w-md">
+              <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                <i data-lucide="search" class="w-4 h-4"></i>
+              </span>
+              <input type="text" id="userSearchInput" oninput="renderUserOverview()" placeholder="ค้นหาเลขที่สัญญา, ประเภทหนี้, หมายเหตุส่วนตัว..." class="w-full bg-white border border-slate-200 rounded-xl pl-9 pr-4 py-2 text-sm outline-none focus:border-[#a6701e] transition-all">
+            </div>
+            <button onclick="exportData('user')" class="w-full md:w-auto flex items-center justify-center gap-1.5 text-xs bg-[#edf7f2] text-[#1b663e] border border-green-200 py-2 px-4 rounded-xl font-bold hover:bg-[#1b663e] hover:text-white transition-all"><i data-lucide="file-spreadsheet" class="w-4 h-4"></i> ส่งออก Excel ของฉัน</button>
+          </div>
+
+          <div class="border border-slate-100 rounded-xl overflow-hidden shadow-sm">
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr class="bg-[#111e30] text-white">
+                    <th class="p-3.5 text-center">ลำดับ</th>
+                    <th class="p-3.5">เลขที่สัญญา</th>
+                    <th class="p-3.5">ประเภทหนี้</th>
+                    <th class="p-3.5 font-bold">ยอดชำระ</th>
+                    <th class="p-3.5">วันครบกำหนด</th>
+                    <th class="p-3.5 text-center">ไฟล์แนบ</th>
+                    <th class="p-3.5">หมายเหตุ</th>
+                    <th class="p-3.5">สถานะ</th>
+                    <th class="p-3.5 text-center">จัดการข้อมูล</th>
+                  </tr>
+                </thead>
+                <tbody id="userTableBody" class="divide-y divide-slate-100"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- User View: Edit Profile Request Form -->
+        <div id="user-userProfile" class="user-view-section hidden space-y-4">
+          <h2 class="text-lg font-bold text-[#111e30]">ส่งคำขอแก้ไขข้อมูลบัญชีประจำตัว</h2>
+          <div class="bg-slate-50 p-6 rounded-xl border border-slate-200 max-w-lg">
+            <p class="text-xs text-slate-500 mb-4">* เพื่อความปลอดภัยขั้นสูง การแก้ไขที่อยู่อีเมลหรือรหัส PIN ใหม่ จะต้องผ่านการตรวจสอบและกดอนุมัติสิทธิ์โดยแอดมินก่อนเท่านั้นจึงจะมีผล</p>
+            <div class="space-y-4">
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">ที่อยู่อีเมลเดิมปัจจุบัน</label>
+                <input id="userCurrentEmail" type="text" class="w-full border border-slate-200 rounded-xl p-2.5 bg-slate-100 text-sm font-semibold outline-none text-slate-500" readonly>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">ต้องการเปลี่ยนที่อยู่อีเมลใหม่เป็น</label>
+                <input id="userNewEmail" type="email" placeholder="กรอกอีเมลใหม่ (เว้นว่างไว้หากไม่ต้องการแก้)" class="w-full border border-slate-200 rounded-xl p-2.5 bg-white text-sm outline-none focus:border-[#a6701e] transition-all">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">ต้องการเปลี่ยนรหัส PIN ใหม่เป็น (4-7 หลัก)</label>
+                <input id="userNewPin" type="password" maxlength="7" placeholder="ตั้งรหัส PIN ใหม่ (เว้นว่างไว้หากไม่ต้องการแก้)" class="w-full border border-slate-200 rounded-xl p-2.5 bg-white text-sm text-center font-bold tracking-widest outline-none focus:border-[#a6701e] transition-all">
+              </div>
+              <button onclick="submitProfileChangeRequest()" class="w-full bg-[#111e30] hover:bg-[#a6701e] text-white p-3 rounded-xl font-bold text-sm transition-all shadow-sm flex items-center justify-center gap-2">
+                <i data-lucide="shield-alert" class="w-4 h-4"></i> ส่งคำขออนุมัติแก้ข้อมูลบัญชี
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- User View: Contact Page Form -->
+        <div id="user-userContact" class="user-view-section hidden space-y-4">
+          <h2 class="text-lg font-bold text-[#111e30]">ติดต่อสอบถามระบบและประวัติการสนทนา</h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="bg-slate-50 p-5 rounded-xl border border-slate-200 h-fit">
+              <h3 class="font-bold text-sm mb-3 text-[#a6701e] flex items-center gap-1"><i data-lucide="pen-tool" class="w-4 h-4"></i> เขียนคำร้องเรียนติดต่อผู้ดูแลระบบ</h3>
+              <div class="mb-4">
+                <textarea id="userToAdminMsg" rows="5" placeholder="พิมพ์ข้อความปัญหาที่ต้องการความช่วยเหลือส่งไปยังแอดมินโดยตรง..." class="w-full border border-slate-200 rounded-xl p-3 bg-white text-sm focus:border-[#a6701e] outline-none transition-all resize-none"></textarea>
+              </div>
+              <button onclick="sendMessageToAdmin()" class="w-full bg-[#a6701e] hover:bg-[#111e30] text-white p-2.5 rounded-xl font-bold text-sm transition-all shadow-sm">ส่งข้อมูลหาแอดมิน</button>
+            </div>
+            <div class="border border-slate-200 p-4 rounded-xl space-y-3">
+              <h3 class="font-bold text-sm text-slate-700 pb-2 border-b border-slate-100 flex items-center gap-1"><i data-lucide="message-square" class="w-4 h-4"></i> ประวัติคำร้องและการตอบกลับ</h3>
+              <div id="userInboxList" class="space-y-3 max-h-[420px] overflow-y-auto pr-1"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- User View: Notices Viewer -->
+        <div id="user-userNotices" class="user-view-section hidden space-y-4">
+          <h2 class="text-lg font-bold text-[#111e30]">กล่องข้อความประชาสัมพันธ์และมาตรการช่วยเหลือ</h2>
+          <div id="userNoticeList" class="space-y-3"></div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="text-center py-6 text-xs text-slate-400 font-medium">
+    &copy; 2026 ระบบบันทึกประจำวัน
+  </footer>
+
+  <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#111e30] text-white text-xs font-semibold px-4 py-3 rounded-xl shadow-2xl hidden z-50 tracking-wide border border-slate-800"></div>
+
+  <!-- ==================== 4. APP SCRIPT ENGINE ==================== -->
+  <script>
+    let currentRole = 'user'; 
+    let currentUserSession = null;
+
+    let users = [
+      { email: 'admin@loan.com', pin: '6803024', role: 'admin', approved: true },
+      { email: 'member1@loan.com', pin: '5678', role: 'user', approved: true }
+    ];
+
+    let debts = [
+      { contract: 'CON-2026-001', name: 'เงินกู้เพื่อการประกอบอาชีพดิจิทัล', pin: '5678', amount: 48000, date: '2026-09-15', status: 'ค้างชำระ', notes: 'ชำระสะสมงวดแรก', fileData: null, fileName: '' },
+      { contract: 'CON-2026-002', name: 'สินเชื่อส่วนบุคคลระยะสั้น', pin: '5678', amount: 18000, date: '2026-07-20', status: 'เกินกำหนด', notes: 'ลำดับจ่ายเร่งด่วน', fileData: null, fileName: '' }
+    ];
+
+    let notices = [
+      { id: 1, text: '📢 ระบบรองรับฟังก์ชันส่งคำขออนุมัติแก้ไขข้อมูลบัญชีอีเมล/PIN ผ่านแอดมิน เพื่อความปลอดภัยสูงสุด' }
+    ];
+
+    let userMessages = [
+      { id: 1, sender: 'member1@loan.com', text: 'ส่งไฟล์หลักฐานประกอบการขอปรับลดยอดผ่อนส่งรายปีครับแอดมิน', reply: 'ทางเราได้รับเรื่องแล้ว จะดำเนินการตรวจสอบในตารางหนี้ให้ครับ', date: '2026-07-19', isRequest: false }
+    ];
+
+    window.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      updateMailBadges();
+    });
+
+    function showToast(message) {
+      const toast = document.getElementById('toast');
+      toast.innerText = message;
+      toast.classList.remove('hidden');
+      setTimeout(() => { toast.classList.add('hidden'); }, 3000);
+    }
+
+    function setRole(role) {
+      currentRole = role;
+      document.getElementById('userRoleBtn').className = `py-2.5 px-4 rounded-lg font-bold text-sm text-center transition-all duration-200 ${role === 'user' ? 'bg-white text-[#111e30] shadow-sm' : 'text-slate-500 hover:text-[#111e30]'}`;
+      document.getElementById('adminRoleBtn').className = `py-2.5 px-4 rounded-lg font-bold text-sm text-center transition-all duration-200 ${role === 'admin' ? 'bg-white text-[#111e30] shadow-sm' : 'text-slate-500 hover:text-[#111e30]'}`;
+    }
+
+    function updateMailBadges() {
+      document.getElementById('adminMailBadge').innerText = userMessages.filter(m => !m.reply).length;
+      document.getElementById('userMailBadge').innerText = notices.length;
+    }
+
+    function handleLogin(e) {
+      e.preventDefault();
+      const pinValue = document.getElementById('pinInput').value;
+      const foundUser = users.find(u => u.pin === pinValue && u.role === currentRole);
+
+      if (foundUser) {
+        if (!foundUser.approved && foundUser.role !== 'admin') {
+          return alert('❌ บัญชีนี้ยังไม่ได้รับการอนุมัติสิทธิ์การเข้าใช้งานจากแอดมิน');
+        }
+        currentUserSession = foundUser;
+        document.getElementById('accessScreen').classList.add('hidden');
+        document.getElementById('pinInput').value = '';
+        
+        if (foundUser.role === 'admin') {
+          document.getElementById('adminDashboard').classList.remove('hidden');
+          renderAdminTable();
+          renderAdminUsers();
+          renderAdminNotices();
+          renderAdminMessages();
+        } else {
+          document.getElementById('userDashboard').classList.remove('hidden');
+          document.getElementById('userSidebarTitle').innerText = foundUser.email;
+          document.getElementById('userCurrentEmail').value = foundUser.email;
+          renderUserOverview();
+          renderUserNotices();
+          renderUserInbox();
+        }
+        updateMailBadges();
+        showToast(`🎉 เข้าสู่ระบบสำเร็จ`);
+      } else {
+        const errorMsg = document.getElementById('accessMessage');
+        errorMsg.innerText = '❌ รหัส PIN หรือบทบาทผู้ใช้งานไม่ถูกต้อง!';
+        errorMsg.classList.remove('hidden');
+      }
+    }
+
+    function handleRegister() {
+      const email = document.getElementById('reqEmail').value.trim();
+      const pin = document.getElementById('reqPin').value.trim();
+      if (!email || !pin) return alert('กรุณากรอกข้อมูลให้ครบถ้วน');
+      if (users.some(u => u.pin === pin)) return alert('รหัส PIN นี้ถูกใช้งานแล้ว');
+
+      users.push({ email, pin, role: 'user', approved: false });
+      showToast('⚠️ ลงทะเบียนสำเร็จ! กรุณารอแอดมินกดอนุมัติเปิดใช้งานบัญชีของคุณ');
+      document.getElementById('reqEmail').value = '';
+      document.getElementById('reqPin').value = '';
+      renderAdminUsers();
+    }
+
+    function logout() {
+      currentUserSession = null;
+      document.getElementById('adminDashboard').classList.add('hidden');
+      document.getElementById('userDashboard').classList.add('hidden');
+      document.getElementById('accessScreen').classList.remove('hidden');
+      cancelEdit('admin');
+      cancelEdit('user');
+      showToast('ออกจากระบบเรียบร้อย');
+    }
+
+    function switchView(role, targetId) {
+      const buttons = document.querySelectorAll(`.${role}-nav-btn`);
+      buttons.forEach(btn => btn.className = `w-full flex items-center gap-3 p-3 rounded-xl font-bold text-sm text-slate-500 hover:bg-slate-50 hover:text-[#111e30] transition-all duration-200`);
+      if(window.event && window.event.currentTarget && window.event.currentTarget.tagName === 'BUTTON') {
+        window.event.currentTarget.className = `w-full flex items-center gap-3 p-3 rounded-xl font-bold text-sm bg-[#111e30] text-white shadow-sm transition-all duration-200`;
+      }
+      const views = document.querySelectorAll(`.${role}-view-section`);
+      views.forEach(view => view.classList.add('hidden'));
+      document.getElementById(`${role}-${targetId}`).classList.remove('hidden');
+    }
+
+    function getBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = error => reject(error);
+      });
+    }
+
+    function openAttachedFile(base64Data) {
+      if (!base64Data) return alert('ไม่มีไฟล์เอกสารแนบ');
+      const win = window.open();
+      win.document.write(`<iframe src="${base64Data}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+    }
+
+    function removeAttachedFile(role) {
+      const suffix = role === 'admin' ? 'Admin' : 'User';
+      const idx = document.getElementById(`editIndex${suffix}`).value;
+      if (idx !== "" && debts[idx]) {
+        debts[idx].fileData = null;
+        debts[idx].fileName = '';
+        showToast('🗑️ ลบไฟล์เดิมเรียบร้อย (กรุณากดบันทึกเพื่ออัปเดต)');
+        document.getElementById(`fileManageZone${suffix}`).classList.add('hidden');
+      }
+    }
+
+    function submitProfileChangeRequest() {
+      const newEmail = document.getElementById('userNewEmail').value.trim();
+      const newPin = document.getElementById('userNewPin').value.trim();
+      
+      if(!newEmail && !newPin) {
+        return alert('กรุณากรอกข้อมูลอีเมลหรือ PIN ใหม่ที่ต้องการส่งคำขอเปลี่ยน');
+      }
+
+      let requestText = `📋 คำขอเปลี่ยนข้อมูลส่วนตัวบัญชี -> `;
+      if(newEmail) requestText += `เปลี่ยนอีเมลใหม่เป็น [ ${newEmail} ] `;
+      if(newPin) requestText += `เปลี่ยนรหัส PIN ใหม่เป็น [ ${newPin} ]`;
+
+      userMessages.push({
+        id: Date.now(),
+        sender: currentUserSession.email,
+        text: requestText,
+        reply: '',
+        date: new Date().toISOString().split('T')[0],
+        isRequest: true,
+        reqEmail: newEmail || null,
+        reqPin: newPin || null,
+        targetPin: currentUserSession.pin 
+      });
+
+      document.getElementById('userNewEmail').value = '';
+      document.getElementById('userNewPin').value = '';
+      showToast('🛡️ คำขอเปลี่ยนข้อมูลถูกส่งไปยังแอดมินเพื่อรออนุมัติแล้ว');
+      updateMailBadges();
+      renderUserInbox();
+    }
+
+    function approveProfileChange(idx) {
+      const msg = userMessages[idx];
+      const targetUser = users.find(u => u.pin === msg.targetPin);
+      
+      if(targetUser) {
+        if(msg.reqEmail) targetUser.email = msg.reqEmail;
+        if(msg.reqPin) {
+          debts.forEach(d => {
+            if(d.pin === targetUser.pin) d.pin = msg.reqPin;
+          });
+          targetUser.pin = msg.reqPin;
+        }
+        
+        userMessages[idx].reply = "✓ คำขออนุมัติการแก้ไขข้อมูลบัญชีของคุณได้รับการอนุมัติและเปลี่ยนผลในระบบแล้ว";
+        showToast('🛡️ อนุมัติเปลี่ยนข้อมูลสมาชิกเสร็จสิ้น!');
+        renderAdminMessages();
+        renderAdminUsers();
+        renderAdminTable();
+      } else {
+        alert('ไม่พบผู้ใช้รายนี้ในระบบ');
+      }
+    }
+
+    function printItemRecord(index) {
+      const d = debts[index];
+      const printZone = document.getElementById('printArea');
+      const formattedAmount = typeof d.amount === 'number' ? d.amount.toLocaleString(undefined, {minimumFractionDigits:2}) : parseFloat(d.amount).toLocaleString(undefined, {minimumFractionDigits:2});
+      
+      printZone.innerHTML = `
+        <div style="font-family: 'Sarabun', sans-serif; padding: 40px; border: 2px solid #111e30; background: #fff; max-width: 800px; margin: 0 auto;">
+          <h1 style="text-align: center; font-size: 26px; font-weight: bold; color: #111e30; margin-bottom: 5px;">เอกสารสรุปข้อมูลบัญชีสัญญาประจำวัน</h1>
+          <p style="text-align: center; font-size: 14px; color: #666; margin-bottom: 30px;">พิมพ์เมื่อวันที่: ${new Date().toLocaleDateString('th-TH')}</p>
+          <hr style="border: 0; border-top: 2px solid #e2dacb; margin-bottom: 25px;">
+          <table style="width: 100%; font-size: 16px; border-collapse: collapse; text-align: left;">
+            <tr style="border-bottom: 1px solid #f0f0f0;"><td style="padding: 12px; font-weight: bold; width: 30%;">เลขที่สัญญา:</td><td style="padding: 12px; font-family: monospace; font-weight: bold;">${d.contract}</td></tr>
+            <tr style="border-bottom: 1px solid #f0f0f0;"><td style="padding: 12px; font-weight: bold;">ประเภทหนี้สิน/เงินกู้:</td><td style="padding: 12px;">${d.name}</td></tr>
+            <tr style="border-bottom: 1px solid #f0f0f0;"><td style="padding: 12px; font-weight: bold;">รหัสผู้กู้ยืม (PIN):</td><td style="padding: 12px; font-family: monospace;">${d.pin || '-'}</td></tr>
+            <tr style="border-bottom: 1px solid #f0f0f0;"><td style="padding: 12px; font-weight: bold;">วันครบกำหนดชำระ:</td><td style="padding: 12px; color: #555;">${d.date}</td></tr>
+            <tr style="border-bottom: 1px solid #f0f0f0;"><td style="padding: 12px; font-weight: bold;">หมายเหตุ/รายละเอียด:</td><td style="padding: 12px; color: #555;">${d.notes || '-'}</td></tr>
+            <tr style="border-bottom: 1px solid #f0f0f0;"><td style="padding: 12px; font-weight: bold;">สถานะดำเนินการ:</td><td style="padding: 12px; font-weight: bold;">${d.status}</td></tr>
+          </table>
+          <div style="margin-top: 50px; text-align: right; background: #fbf5e9; padding: 20px; border-radius: 12px; border: 1px solid #e2dacb;">
+            <span style="font-size: 16px; font-weight: bold; color: #111e30; display: block; margin-bottom: 5px;">ยอดรวมชำระทั้งสิ้น</span>
+            <span style="font-size: 28px; font-weight: bold; color: #a8392c;">฿${formattedAmount} บาท</span>
+          </div>
+        </div>
+      `;
+      
+      setTimeout(() => { window.print(); }, 250);
+    }
+
+    function renderAdminTable() {
+      const tbody = document.getElementById('adminOverviewTableBody');
+      const searchKey = document.getElementById('adminSearchInput').value.toLowerCase().trim();
+      tbody.innerHTML = '';
+      
+      debts.forEach((d, idx) => {
+        if (searchKey && !d.contract.toLowerCase().includes(searchKey) && 
+            !d.name.toLowerCase().includes(searchKey) && 
+            !d.pin.toLowerCase().includes(searchKey) && 
+            !(d.notes && d.notes.toLowerCase().includes(searchKey))) {
+          return;
+        }
+
+        let statusClass = d.status === 'เกินกำหนด' ? 'status-overdue' : (d.status === 'ชำระแล้ว' ? 'status-paid' : 'status-pending');
+        let fileBtn = d.fileData ? `<button onclick="openAttachedFile('${d.fileData}')" class="text-[#a6701e] hover:text-[#111e30] font-bold inline-flex items-center gap-0.5"><i data-lucide="file-text" class="w-3.5 h-3.5"></i> ดูไฟล์</button>` : `<span class="text-slate-300">-</span>`;
+        
+        tbody.innerHTML += `
+          <tr class="hover:bg-slate-50 transition-colors">
+            <td class="p-3.5 text-center font-bold text-slate-400">${idx + 1}</td>
+            <td class="p-3.5 font-bold font-mono text-[#111e30]">${d.contract}</td>
+            <td class="p-3.5 font-medium">${d.name}</td>
+            <td class="p-3.5 text-center"><span class="bg-slate-100 px-2 py-0.5 rounded font-mono text-slate-600 font-bold">${d.pin || '-'}</span></td>
+            <td class="p-3.5 font-bold text-slate-700">฿${d.amount.toLocaleString(undefined, {minimumFractionDigits:2})}</td>
+            <td class="p-3.5 text-slate-500 font-medium">${d.date}</td>
+            <td class="p-3.5 text-center">${fileBtn}</td>
+            <td class="p-3.5 text-slate-500 max-w-[130px] truncate" title="${d.notes || ''}">${d.notes || '-'}</td>
+            <td class="p-3.5"><span class="status-pill ${statusClass}">${d.status}</span></td>
+            <td class="p-3.5 flex justify-center gap-1.5">
+              <button onclick="printItemRecord(${idx})" class="bg-slate-100 hover:bg-slate-200 text-slate-600 px-2.5 py-1 rounded-lg font-bold transition-all flex items-center gap-0.5">พิมพ์</button>
+              <button onclick="editDebtItem(${idx}, 'admin')" class="bg-amber-50 hover:bg-amber-500 hover:text-white text-[#a6701e] px-2 py-1 rounded-lg font-bold transition-all">แก้ไข</button>
+              <button onclick="deleteDebtItem(${idx}, 'admin')" class="bg-red-50 hover:bg-red-500 hover:text-white text-red-600 px-2 py-1 rounded-lg font-bold transition-all">ลบ</button>
+            </td>
+          </tr>`;
+      });
+      lucide.createIcons();
+    }
+
+    function renderUserOverview() {
+      const tbody = document.getElementById('userTableBody');
+      const searchKey = document.getElementById('userSearchInput').value.toLowerCase().trim();
+      tbody.innerHTML = '';
+      let displayIdx = 1;
+
+      debts.forEach((d, originalIndex) => {
+        if (d.pin !== currentUserSession.pin) return;
+        
+        if (searchKey && !d.contract.toLowerCase().includes(searchKey) && 
+            !d.name.toLowerCase().includes(searchKey) && 
+            !(d.notes && d.notes.toLowerCase().includes(searchKey))) {
+          return;
+        }
+
+        let statusClass = d.status === 'เกินกำหนด' ? 'status-overdue' : (d.status === 'ชำระแล้ว' ? 'status-paid' : 'status-pending');
+        let fileBtn = d.fileData ? `<button onclick="openAttachedFile('${d.fileData}')" class="text-[#a6701e] hover:text-[#111e30] font-bold inline-flex items-center gap-0.5"><i data-lucide="file-text" class="w-3.5 h-3.5"></i> ดูไฟล์</button>` : `<span class="text-slate-300">-</span>`;
+        
+        tbody.innerHTML += `
+          <tr class="hover:bg-slate-50 transition-colors">
+            <td class="p-3.5 text-center font-bold text-slate-400">${displayIdx++}</td>
+            <td class="p-3.5 font-bold font-mono text-[#111e30]">${d.contract}</td>
+            <td class="p-3.5 font-medium">${d.name}</td>
+            <td class="p-3.5 font-bold text-slate-700">฿${d.amount.toLocaleString(undefined, {minimumFractionDigits:2})}</td>
+            <td class="p-3.5 text-slate-500 font-medium">${d.date}</td>
+            <td class="p-3.5 text-center">${fileBtn}</td>
+            <td class="p-3.5 text-slate-500">${d.notes || '-'}</td>
+            <td class="p-3.5"><span class="status-pill ${statusClass}">${d.status}</span></td>
+            <td class="p-3.5 flex justify-center gap-1.5">
+              <button onclick="printItemRecord(${originalIndex})" class="bg-slate-100 hover:bg-slate-200 text-slate-600 px-2.5 py-1 rounded-lg font-bold transition-all flex items-center gap-0.5">พิมพ์</button>
+              <button onclick="editDebtItem(${originalIndex}, 'user')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-1 rounded-lg font-bold transition-all">แก้ไข</button>
+              <button onclick="deleteDebtItem(${originalIndex}, 'user')" class="bg-red-50 hover:bg-red-500 hover:text-white text-red-600 px-2 py-1 rounded-lg font-bold transition-all">ลบ</button>
+            </td>
+          </tr>`;
+      });
+      lucide.createIcons();
+    }
+
+    async function saveDebtRecord(e, role) {
+      e.preventDefault();
+      const suffix = role === 'admin' ? 'Admin' : 'User';
+      const name = document.getElementById(`debtorName${suffix}`).value;
+      const contract = document.getElementById(`contractNumber${suffix}`).value.trim();
+      const amount = parseFloat(document.getElementById(`amount${suffix}`).value);
+      const date = document.getElementById(`dueDate${suffix}`).value;
+      const status = document.getElementById(`debtStatus${suffix}`).value;
+      const notes = document.getElementById(`notes${suffix}`).value;
+      const fileInput = document.getElementById(`file${suffix}`);
+      const editIndex = document.getElementById(`editIndex${suffix}`).value;
+      const pin = role === 'admin' ? document.getElementById('assignedUserPinAdmin').value.trim() : currentUserSession.pin;
+
+      let fileData = editIndex !== "" ? debts[editIndex].fileData : null;
+      let fileName = editIndex !== "" ? debts[editIndex].fileName : '';
+
+      if (fileInput.files.length > 0) {
+        fileData = await getBase64(fileInput.files[0]);
+        fileName = fileInput.files[0].name;
+      }
+
+      const recordData = { contract, name, pin, amount, date, status, notes, fileData, fileName };
+
+      if (editIndex !== "") {
+        debts[editIndex] = recordData;
+        showToast('🔄 อัปเดตและบันทึกข้อมูลเรียบร้อย!');
+      } else {
+        if (debts.some(d => d.contract === contract)) return alert('สัญญานี้มีอยู่ในระบบแล้ว');
+        debts.push(recordData);
+        showToast('💾 เพิ่มรายการสัญญาสำเร็จ');
+      }
+
+      cancelEdit(role);
+      renderAdminTable();
+      renderUserOverview();
+    }
+
+    function editDebtItem(index, role) {
+      const d = debts[index];
+      const suffix = role === 'admin' ? 'Admin' : 'User';
+      
+      document.getElementById(`editIndex${suffix}`).value = index;
+      document.getElementById(`debtorName${suffix}`).value = d.name;
+      document.getElementById(`contractNumber${suffix}`).value = d.contract;
+      document.getElementById(`amount${suffix}`).value = d.amount;
+      document.getElementById(`dueDate${suffix}`).value = d.date;
+      document.getElementById(`debtStatus${suffix}`).value = d.status;
+      document.getElementById(`notes${suffix}`).value = d.notes || '';
+      
+      if (role === 'admin') document.getElementById('assignedUserPinAdmin').value = d.pin;
+      
+      const fileDisplay = document.getElementById(`fileNameDisplay${suffix}`);
+      const fileZone = document.getElementById(`fileManageZone${suffix}`);
+      if(d.fileName) {
+         fileDisplay.innerText = d.fileName;
+         fileZone.classList.remove('hidden');
+      } else {
+         fileZone.classList.add('hidden');
+      }
+      
+      document.getElementById(`cancelBtn${suffix}`).classList.remove('hidden');
+      
+      const banner = document.getElementById(`editBanner${suffix}`);
+      if(banner) { banner.classList.remove('hidden'); }
+      
+      lucide.createIcons();
+    }
+
+    function deleteDebtItem(index, role) {
+      if (confirm('คุณแน่ใจหรือเปล่าว่าต้องการลบข้อมูลบัญชีสัญญานี้?')) {
+        debts.splice(index, 1);
+        showToast('🗑️ ลบข้อมูลเรียบร้อยแล้ว');
+        renderAdminTable();
+        renderUserOverview();
+      }
+    }
+
+    function cancelEdit(role) {
+      const suffix = role === 'admin' ? 'Admin' : 'User';
+      document.getElementById(`editIndex${suffix}`).value = "";
+      document.getElementById(`cancelBtn${suffix}`).classList.add('hidden');
+      document.getElementById(`fileManageZone${suffix}`).classList.add('hidden');
+      
+      const banner = document.getElementById(`editBanner${suffix}`);
+      if(banner) { banner.classList.add('hidden'); }
+      
+      document.getElementById(`${role}DebtForm`).reset();
+      lucide.createIcons();
+    }
+
+    function renderAdminUsers() {
+      const tbody = document.getElementById('adminUsersTableBody');
+      tbody.innerHTML = '';
+      users.forEach((u, index) => {
+        tbody.innerHTML += `
+          <tr class="hover:bg-slate-50 transition-colors">
+            <td class="p-3.5 font-bold text-slate-400">${index + 1}</td>
+            <td class="p-3.5 font-semibold text-slate-700">${u.email}</td>
+            <td class="p-3.5 font-mono font-bold">${u.pin}</td>
+            <td class="p-3.5"><span class="px-2.5 py-0.5 rounded-md text-xs font-bold ${u.role==='admin'?'bg-purple-50 text-purple-700 border border-purple-200':'bg-blue-50 text-blue-700 border border-blue-200'}">${u.role}</span></td>
+            <td class="p-3.5">
+              ${u.role === 'admin' ? '<span class="text-purple-600 font-bold text-xs">แอดมินหลัก</span>' : `
+                <button onclick="toggleApprove(${index})" class="px-3 py-1 text-xs font-bold rounded-lg transition-all ${u.approved ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-600 hover:text-white' : 'bg-red-50 text-red-600 border border-red-200 hover:bg-red-500 hover:text-white'}">
+                  ${u.approved ? '✓ อนุมัติแล้ว' : '🔄 รออนุมัติ (คลิก)'}
+                </button>
+              `}
+            </td>
+            <td class="p-3.5 text-center space-x-2">
+              ${u.role !== 'admin' ? `
+                <button onclick="editUserItem(${index})" class="text-xs text-amber-600 font-bold hover:underline">แก้ไข</button>
+                <button onclick="deleteUser(${index})" class="text-xs text-red-500 font-bold hover:underline">ลบผู้ใช้</button>
+              ` : '-'}
+            </td>
+          </tr>`;
+      });
+    }
+
+    function saveUserRecord(e) {
+      e.preventDefault();
+      const email = document.getElementById('userEmailInput').value.trim();
+      const pin = document.getElementById('userPinInput').value.trim();
+      const editIndex = document.getElementById('editUserIndex').value;
+
+      if (editIndex !== "") {
+        const oldPin = users[editIndex].pin;
+        users[editIndex].email = email;
+        users[editIndex].pin = pin;
+
+        debts.forEach(d => {
+          if (d.pin === oldPin) d.pin = pin;
+        });
+        showToast('🔄 อัปเดตข้อมูลสมาชิกเรียบร้อยแล้ว');
+      } else {
+        if (users.some(u => u.pin === pin)) return alert('รหัส PIN นี้มีอยู่ในระบบแล้ว');
+        users.push({ email, pin, role: 'user', approved: true });
+        showToast('💾 เพิ่มสมาชิกใหม่เข้าสู่ระบบสำเร็จ');
+      }
+
+      cancelUserEdit();
+      renderAdminUsers();
+      renderAdminTable();
+    }
+
+    function editUserItem(index) {
+      const u = users[index];
+      document.getElementById('editUserIndex').value = index;
+      document.getElementById('userEmailInput').value = u.email;
+      document.getElementById('userPinInput').value = u.pin;
+      document.getElementById('cancelUserBtn').classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function cancelUserEdit() {
+      document.getElementById('editUserIndex').value = "";
+      document.getElementById('cancelUserBtn').classList.add('hidden');
+      document.getElementById('adminUserForm').reset();
+      lucide.createIcons();
+    }
+
+    function toggleApprove(index) {
+      users[index].approved = !users[index].approved;
+      showToast('🛡️ เปลี่ยนแปลงสถานะสิทธิ์เรียบร้อย');
+      renderAdminUsers();
+    }
+
+    function deleteUser(index) {
+      if (confirm('ต้องการลบบัญชีสมาชิกนี้ออกจากระบบหรือไม่?')) {
+        users.splice(index, 1);
+        showToast('🗑️ ลบสมาชิกสำเร็จ');
+        renderAdminUsers();
+      }
+    }
+
+    function sendMessageToAdmin() {
+      const text = document.getElementById('userToAdminMsg').value.trim();
+      if (!text) return alert('กรุณากรอกข้อความ');
+      
+      userMessages.push({
+        id: Date.now(),
+        sender: currentUserSession.email,
+        text: text,
+        reply: '',
+        date: new Date().toISOString().split('T')[0],
+        isRequest: false
+      });
+
+      document.getElementById('userToAdminMsg').value = '';
+      showToast('✉️ ส่งข้อความถึงผู้ดูแลระบบเรียบร้อย');
+      updateMailBadges();
+      renderUserInbox();
+    }
+
+    function renderAdminMessages() {
+      const box = document.getElementById('adminMessageList');
+      box.innerHTML = '';
+      if(userMessages.length === 0) {
+        box.innerHTML = '<div class="p-6 text-center text-slate-400 font-bold">ไม่มีประวัติคำถามหรือกล่องข้อความติดต่อเข้ามา</div>';
+        return;
+      }
+      userMessages.forEach((m, idx) => {
+        let actionZone = '';
+        if(m.isRequest && !m.reply.startsWith('✓')) {
+          actionZone = `<button onclick="approveProfileChange(${idx})" class="mt-2 w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-xl text-xs transition-all shadow-sm">✓ คลิกเพื่ออนุมัติการเปลี่ยนข้อมูลของสมาชิกรายนี้</button>`;
+        }
+
+        box.innerHTML += `
+          <div class="p-4 bg-slate-50 border border-slate-200 rounded-xl text-xs space-y-3">
+            <div class="flex justify-between font-bold text-slate-400">
+              <span class="text-[#111e30]">👤 ผู้ส่งคำร้อง: ${m.sender}</span>
+              <span>📅 ${m.date}</span>
+            </div>
+            <p class="text-slate-800 font-semibold text-sm bg-white p-3 rounded-xl border border-slate-100 shadow-sm">${m.text}</p>
+            ${actionZone}
+            <div class="pt-2 border-t border-slate-200/60">
+              <div class="flex gap-2">
+                <input type="text" id="replyInputAdmin_${idx}" value="${m.reply || ''}" placeholder="พิมพ์ข้อความตอบกลับสมาชิก..." class="flex-1 border border-slate-200 rounded-xl p-2.5 text-xs bg-white outline-none focus:border-[#a6701e]">
+                <button onclick="submitAdminReply(${idx})" class="bg-[#111e30] hover:bg-[#a6701e] text-white px-4 py-2 rounded-xl font-bold transition-all">ตอบกลับ</button>
+              </div>
+            </div>
+            <div class="flex justify-end">
+              <button onclick="deleteMessage(${idx})" class="text-red-500 font-bold hover:underline text-[10px]">ลบหัวข้อข้อความนี้</button>
+            </div>
+          </div>`;
+      });
+    }
+
+    function submitAdminReply(idx) {
+      const replyText = document.getElementById(`replyInputAdmin_${idx}`).value.trim();
+      if (!replyText) return alert('กรุณากรอกข้อความตอบกลับ');
+      userMessages[idx].reply = replyText;
+      showToast('✉️ ตอบกลับข้อความสมาชิกแล้ว');
+      updateMailBadges();
+      renderAdminMessages();
+    }
+
+    function deleteMessage(idx) {
+      userMessages.splice(idx, 1);
+      showToast('ลบเรียบร้อยแล้ว');
+      renderAdminMessages();
+      updateMailBadges();
+    }
+
+    function renderUserInbox() {
+      const box = document.getElementById('userInboxList');
+      box.innerHTML = '';
+      const myMessages = userMessages.filter(m => m.sender === currentUserSession.email);
+
+      if (myMessages.length === 0) {
+        box.innerHTML = '<div class="p-4 text-center text-slate-400 font-medium text-xs">ไม่มีประวัติการส่งคำร้องเรียน</div>';
+        return;
+      }
+
+      myMessages.forEach(m => {
+        box.innerHTML += `
+          <div class="p-3 bg-slate-50 border border-slate-100 rounded-xl text-xs space-y-1.5 shadow-sm">
+            <div class="text-slate-400 font-medium">📅 วันที่: ${m.date}</div>
+            <div class="bg-white p-2.5 rounded-lg border border-slate-100 text-slate-700 font-medium">ฉัน: ${m.text}</div>
+            ${m.reply ? `<div class="bg-[#fbf5e9] p-2.5 rounded-lg border border-[#e2dacb] font-bold text-[#a6701e]"><i data-lucide="message-square" class="inline w-3.5 mr-1"></i>แอดมินตอบกลับ: ${m.reply}</div>` : `<div class="text-[11px] text-slate-400 italic">🕒 รอแอดมินตรวจสอบอนุมัติ...</div>`}
+          </div>`;
+      });
+      lucide.createIcons();
+    }
+
+    function publishNotice() {
+      const txt = document.getElementById('noticeMessage').value.trim();
+      if (!txt) return;
+      notices.unshift({ id: Date.now(), text: `📢 ${txt}` });
+      document.getElementById('noticeMessage').value = '';
+      showToast('📢 เผยแพร่ข้อความข่าวสารประกาศสำเร็จ');
+      renderAdminNotices();
+      updateMailBadges();
+    }
+
+    function renderAdminNotices() {
+      const box = document.getElementById('adminNoticeList');
+      box.innerHTML = '';
+      notices.forEach(n => {
+        box.innerHTML += `<div class="p-3 border border-[#e2dacb] bg-[#fbf5e9] rounded-xl text-xs text-[#a6701e] font-bold shadow-sm">${n.text}</div>`;
+      });
+    }
+
+    function renderUserNotices() {
+      const list = document.getElementById('userNoticeList');
+      list.innerHTML = '';
+      notices.forEach(n => {
+        list.innerHTML += `<div class="p-4 border border-[#e2dacb] bg-[#fbf5e9] rounded-xl text-sm text-[#a6701e] font-bold shadow-sm">${n.text}</div>`;
+      });
+    }
+
+    function exportData(role) {
+      let targetDebts = [];
+      let filename = '';
+
+      if (role === 'admin') {
+        targetDebts = debts;
+        filename = 'Digital_Loan_Admin_Full_Report.xlsx';
+      } else {
+        targetDebts = debts.filter(d => d.pin === currentUserSession.pin);
+        filename = `My_Loan_Report_${currentUserSession.email.split('@')[0]}.xlsx`;
+      }
+
+      if (targetDebts.length === 0) {
+        return alert('❌ ไม่พบข้อมูลบัญชีสัญญาที่จะใช้ส่งออกเป็นไฟล์ Excel');
+      }
+
+      const cleanData = targetDebts.map(d => ({ 
+        'เลขที่สัญญา': d.contract, 
+        'ประเภทเงินกู้/หนี้สิน': d.name, 
+        'รหัสผู้กู้': d.pin, 
+        'จำนวนเงิน (บาท)': d.amount, 
+        'วันครบกำหนดชำระ': d.date, 
+        'สถานะ': d.status, 
+        'หมายเหตุ': d.notes 
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(cleanData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'รายการบัญชีสัญญา');
+      XLSX.writeFile(wb, filename);
+      
+      showToast('📥 ดาวน์โหลดรายงาน Excel สำเร็จเรียบร้อย');
+    }
+  </script>
+</body>
+</html>
+<!-- User View: Profile Request -->
+        <div id="user-userProfile" class="user-view-section hidden space-y-4">
+          <h2 class="text-lg font-bold text-[#111e30]">ขออนุมัติแก้ไขข้อมูลบัญชีผู้ใช้งาน</h2>
+          <div class="bg-slate-50 border border-slate-200 p-5 rounded-xl space-y-4">
+            <p class="text-sm text-slate-600">หากต้องการเปลี่ยน PIN หรือข้อมูลส่วนตัว กรุณาส่งคำร้องถึงผู้ดูแลระบบ</p>
+            <textarea id="userProfileReq" rows="3" placeholder="ระบุรายละเอียดที่ต้องการขอแก้ไข..." class="w-full border border-slate-200 rounded-xl p-3 bg-white text-sm focus:border-[#a6701e] outline-none transition-all resize-none"></textarea>
+            <button onclick="sendRequest('profile')" class="bg-[#a6701e] text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-[#111e30] transition-all">ส่งคำขอแก้ไขข้อมูล</button>
+          </div>
+        </div>
+
+        <!-- User View: Contact -->
+        <div id="user-userContact" class="user-view-section hidden space-y-4">
+          <h2 class="text-lg font-bold text-[#111e30]">ติดต่อสอบถามผู้ดูแลระบบ</h2>
+          <div class="bg-slate-50 border border-slate-200 p-5 rounded-xl space-y-4">
+            <textarea id="userContactMsg" rows="3" placeholder="ข้อความถึงแอดมิน..." class="w-full border border-slate-200 rounded-xl p-3 bg-white text-sm focus:border-[#a6701e] outline-none transition-all resize-none"></textarea>
+            <button onclick="sendRequest('contact')" class="bg-[#111e30] text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-[#a6701e] transition-all">ส่งข้อความ</button>
+          </div>
+        </div>
+
+        <!-- User View: Notices -->
+        <div id="user-userNotices" class="user-view-section hidden space-y-4">
+          <h2 class="text-lg font-bold text-[#111e30]">ประกาศจากระบบ</h2>
+          <div id="userNoticeList" class="space-y-3"></div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    // เริ่มต้นระบบ
+    lucide.createIcons();
+    let currentRole = 'user';
+    let loggedInUser = null;
+
+    // จำลองฐานข้อมูลใน localStorage
+    const db = {
+      debts: JSON.parse(localStorage.getItem('debts')) || [],
+      users: JSON.parse(localStorage.getItem('users')) || [{email: 'admin@system.com', pin: '0000', role: 'admin'}],
+      requests: JSON.parse(localStorage.getItem('requests')) || [],
+      notices: JSON.parse(localStorage.getItem('notices')) || []
+    };
+
+    function setRole(role) {
+      currentRole = role;
+      document.getElementById('userRoleBtn').className = role === 'user' ? 'py-2.5 px-4 rounded-lg font-bold text-sm bg-white shadow-sm' : 'py-2.5 px-4 rounded-lg font-bold text-sm text-slate-500 hover:text-[#111e30]';
+      document.getElementById('adminRoleBtn').className = role === 'admin' ? 'py-2.5 px-4 rounded-lg font-bold text-sm bg-white shadow-sm' : 'py-2.5 px-4 rounded-lg font-bold text-sm text-slate-500 hover:text-[#111e30]';
+    }
+
+    function handleLogin(e) {
+      e.preventDefault();
+      const pin = document.getElementById('pinInput').value;
+      const user = db.users.find(u => u.pin === pin);
+      
+      if (user && user.role === currentRole) {
+        loggedInUser = user;
+        document.getElementById('accessScreen').classList.add('hidden');
+        document.getElementById(currentRole + 'Dashboard').classList.remove('hidden');
+        renderDashboard();
+      } else {
+        const msg = document.getElementById('accessMessage');
+        msg.textContent = 'รหัส PIN ไม่ถูกต้อง หรือไม่มีสิทธิ์เข้าถึงในบทบาทนี้';
+        msg.classList.remove('hidden');
+      }
+    }
+
+    function switchView(role, view) {
+      document.querySelectorAll(`.${role}-view-section`).forEach(el => el.classList.add('hidden'));
+      document.getElementById(`${role}-${view}`).classList.remove('hidden');
+    }
+
+    function logout() {
+      location.reload();
+    }
+
+    // ฟังก์ชันเสริมอื่นๆ เช่น saveDebtRecord, renderTable, exportData 
+    // สามารถนำมาเติมต่อจากตรงนี้ได้ตาม logic ธุรกิจของคุณครับ
+  </script>
+</body>
+</html>
